@@ -4,6 +4,29 @@ const asyncHandler = require('express-async-handler');
 const Product = require('../models/Product');
 const { protect, admin } = require('../middlewares/authMiddleware');
 
+// Image Upload Dependencies
+const multer = require('multer');
+const { v2: cloudinary } = require('cloudinary');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+
+// Cloudinary Configuration
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Multer Storage Setup for Cloudinary
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'mern-ecommerce',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+  },
+});
+
+const upload = multer({ storage: storage });
+
 // GET /api/products - All products (public)
 router.get('/', asyncHandler(async (req, res) => {
   const { category, search, sort, page = 1, limit = 144 } = req.query;
@@ -44,13 +67,16 @@ router.get('/:id', asyncHandler(async (req, res) => {
   res.json({ success: true, product });
 }));
 
-// POST - Create product (Admin)
-router.post('/', protect, admin, asyncHandler(async (req, res) => {
-  const { name, price, description, category, image, stock, brand } = req.body;
+// POST - Create product (Admin) - Added upload.single('image')
+router.post('/', protect, admin, upload.single('image'), asyncHandler(async (req, res) => {
+  // If file is uploaded, req.file.path will have the cloudinary URL
+  const imageUrl = req.file ? req.file.path : req.body.image;
 
-  if (!name || !price || !description || !category || !image) {
+  const { name, price, description, category, stock, brand } = req.body;
+
+  if (!name || !price || !description || !category || !imageUrl) {
     res.status(400);
-    throw new Error('Please fill all required fields');
+    throw new Error('Please fill all required fields and provide an image');
   }
 
   const product = new Product({
@@ -58,7 +84,7 @@ router.post('/', protect, admin, asyncHandler(async (req, res) => {
     price: Number(price),
     description,
     category,
-    image,
+    image: imageUrl, // Save Cloudinary URL or manual URL
     stock: Number(stock) || 0,
     brand: brand || '',
     user: req.user.id
@@ -68,19 +94,22 @@ router.post('/', protect, admin, asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, product: saved });
 }));
 
-// PUT - Update product (Admin)
-router.put('/:id', protect, admin, asyncHandler(async (req, res) => {
+// PUT - Update product (Admin) - Added upload.single('image')
+router.put('/:id', protect, admin, upload.single('image'), asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id);
   if (!product) {
     res.status(404);
     throw new Error('Product not found');
   }
 
+  // If new file uploaded, use its URL, otherwise use the URL from body or keep old
+  const imageUrl = req.file ? req.file.path : (req.body.image || product.image);
+
   product.name = req.body.name || product.name;
   product.price = req.body.price ? Number(req.body.price) : product.price;
   product.description = req.body.description || product.description;
   product.category = req.body.category || product.category;
-  product.image = req.body.image || product.image;
+  product.image = imageUrl;
   product.stock = req.body.stock !== undefined ? Number(req.body.stock) : product.stock;
   product.brand = req.body.brand !== undefined ? req.body.brand : product.brand;
 
