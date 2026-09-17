@@ -7,7 +7,6 @@ const { protect, admin } = require('../middlewares/authMiddleware');
 // Image Upload Dependencies
 const multer = require('multer');
 const { v2: cloudinary } = require('cloudinary');
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 // Cloudinary Configuration
 cloudinary.config({
@@ -16,15 +15,8 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Multer Storage Setup for Cloudinary
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'mern-ecommerce',
-    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
-  },
-});
-
+// Multer Memory Storage (Temporarily store in memory)
+const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 // GET /api/products - All products (public)
@@ -67,55 +59,82 @@ router.get('/:id', asyncHandler(async (req, res) => {
   res.json({ success: true, product });
 }));
 
-// POST - Create product (Admin) - Added upload.single('image')
-router.post('/', protect, admin, upload.single('image'), asyncHandler(async (req, res) => {
-  // If file is uploaded, req.file.path will have the cloudinary URL
-  const imageUrl = req.file ? req.file.path : req.body.image;
+// POST - Create product (Admin)
+router.post('/', protect, admin, upload.single('image'), async (req, res) => {
+  try {
+    const { name, price, description, category, stock, brand } = req.body;
 
-  const { name, price, description, category, stock, brand } = req.body;
+    if (!name || !price || !description || !category) {
+      return res.status(400).json({ success: false, message: 'Please fill all required fields' });
+    }
 
-  if (!name || !price || !description || !category || !imageUrl) {
-    res.status(400);
-    throw new Error('Please fill all required fields and provide an image');
+    let imageUrl = req.body.image; // Agar URL se add kiya
+
+    // Agar file upload ki hai
+    if (req.file) {
+      const result = await cloudinary.uploader.upload(req.file.buffer, {
+        folder: 'mern-ecommerce',
+        resource_type: 'image'
+      });
+      imageUrl = result.secure_url;
+    }
+
+    if (!imageUrl) {
+      return res.status(400).json({ success: false, message: 'Please provide an image URL or upload a file' });
+    }
+
+    const product = new Product({
+      name,
+      price: Number(price),
+      description,
+      category,
+      image: imageUrl,
+      stock: Number(stock) || 0,
+      brand: brand || '',
+      user: req.user.id
+    });
+
+    const saved = await product.save();
+    res.status(201).json({ success: true, product: saved });
+  } catch (error) {
+    console.error("Upload Error:", error);
+    res.status(500).json({ success: false, message: error.message || 'Server Error during product creation' });
   }
+});
 
-  const product = new Product({
-    name,
-    price: Number(price),
-    description,
-    category,
-    image: imageUrl, // Save Cloudinary URL or manual URL
-    stock: Number(stock) || 0,
-    brand: brand || '',
-    user: req.user.id
-  });
+// PUT - Update product (Admin)
+router.put('/:id', protect, admin, upload.single('image'), async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
 
-  const saved = await product.save();
-  res.status(201).json({ success: true, product: saved });
-}));
+    let imageUrl = req.body.image || product.image;
 
-// PUT - Update product (Admin) - Added upload.single('image')
-router.put('/:id', protect, admin, upload.single('image'), asyncHandler(async (req, res) => {
-  const product = await Product.findById(req.params.id);
-  if (!product) {
-    res.status(404);
-    throw new Error('Product not found');
+    if (req.file) {
+      const result = await cloudinary.uploader.upload(req.file.buffer, {
+        folder: 'mern-ecommerce',
+        resource_type: 'image'
+      });
+      imageUrl = result.secure_url;
+    }
+
+    product.name = req.body.name || product.name;
+    product.price = req.body.price ? Number(req.body.price) : product.price;
+    product.description = req.body.description || product.description;
+    product.category = req.body.category || product.category;
+    product.image = imageUrl;
+    product.stock = req.body.stock !== undefined ? Number(req.body.stock) : product.stock;
+    product.brand = req.body.brand !== undefined ? req.body.brand : product.brand;
+
+    const updated = await product.save();
+    res.json({ success: true, product: updated });
+  } catch (error) {
+    console.error("Update Error:", error);
+    res.status(500).json({ success: false, message: error.message || 'Server Error during product update' });
   }
-
-  // If new file uploaded, use its URL, otherwise use the URL from body or keep old
-  const imageUrl = req.file ? req.file.path : (req.body.image || product.image);
-
-  product.name = req.body.name || product.name;
-  product.price = req.body.price ? Number(req.body.price) : product.price;
-  product.description = req.body.description || product.description;
-  product.category = req.body.category || product.category;
-  product.image = imageUrl;
-  product.stock = req.body.stock !== undefined ? Number(req.body.stock) : product.stock;
-  product.brand = req.body.brand !== undefined ? req.body.brand : product.brand;
-
-  const updated = await product.save();
-  res.json({ success: true, product: updated });
-}));
+});
 
 // DELETE - Delete product (Admin)
 router.delete('/:id', protect, admin, asyncHandler(async (req, res) => {
