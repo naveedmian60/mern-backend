@@ -15,9 +15,22 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Multer Memory Storage (Temporarily store in memory)
+// Multer Memory Storage
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
+
+// Helper function to upload buffer to Cloudinary
+const uploadToCloudinary = (buffer) => {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.upload_stream(
+      { folder: 'mern-ecommerce', resource_type: 'image' },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      }
+    ).end(buffer); // Buffer ko stream ke through bhej rahe hain
+  });
+};
 
 // GET /api/products - All products (public)
 router.get('/', asyncHandler(async (req, res) => {
@@ -68,14 +81,11 @@ router.post('/', protect, admin, upload.single('image'), async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please fill all required fields' });
     }
 
-    let imageUrl = req.body.image; // Agar URL se add kiya
+    let imageUrl = req.body.image; // Agar URL paste kiya
 
     // Agar file upload ki hai
     if (req.file) {
-      const result = await cloudinary.uploader.upload(req.file.buffer, {
-        folder: 'mern-ecommerce',
-        resource_type: 'image'
-      });
+      const result = await uploadToCloudinary(req.file.buffer);
       imageUrl = result.secure_url;
     }
 
@@ -97,7 +107,7 @@ router.post('/', protect, admin, upload.single('image'), async (req, res) => {
     const saved = await product.save();
     res.status(201).json({ success: true, product: saved });
   } catch (error) {
-    console.error("Upload Error:", error);
+    console.error("Upload Error:", error.message);
     res.status(500).json({ success: false, message: error.message || 'Server Error during product creation' });
   }
 });
@@ -113,10 +123,7 @@ router.put('/:id', protect, admin, upload.single('image'), async (req, res) => {
     let imageUrl = req.body.image || product.image;
 
     if (req.file) {
-      const result = await cloudinary.uploader.upload(req.file.buffer, {
-        folder: 'mern-ecommerce',
-        resource_type: 'image'
-      });
+      const result = await uploadToCloudinary(req.file.buffer);
       imageUrl = result.secure_url;
     }
 
@@ -131,7 +138,7 @@ router.put('/:id', protect, admin, upload.single('image'), async (req, res) => {
     const updated = await product.save();
     res.json({ success: true, product: updated });
   } catch (error) {
-    console.error("Update Error:", error);
+    console.error("Update Error:", error.message);
     res.status(500).json({ success: false, message: error.message || 'Server Error during product update' });
   }
 });
