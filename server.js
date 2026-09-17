@@ -11,7 +11,8 @@ connectDB();
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+// Limit increased to handle image uploads if base64 is used accidentally
+app.use(express.json({ limit: '10mb' }));
 
 // Routes
 app.use('/api/users', require('./routes/userRoutes'));
@@ -19,6 +20,15 @@ app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/orders', require('./routes/orderRoutes'));
 app.use('/api/contact', contactRoutes);
 app.use('/api/reviews', reviewRoutes);
+
+// Global Error Handler (Yeh error ko saaf saaf dikhayega)
+app.use((err, req, res, next) => {
+  console.error("Global Error Caught:", err.message || err);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Internal Server Error'
+  });
+});
 
 const PORT = process.env.PORT || 5000;
 
