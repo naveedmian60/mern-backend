@@ -6,27 +6,30 @@ const { protect, admin } = require('../middlewares/authMiddleware');
 
 // Image Upload Dependencies
 const multer = require('multer');
+const { v2: cloudinary } = require('cloudinary');
+
+// Cloudinary Configuration
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 // Multer Memory Storage
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-// Helper function to upload buffer to ImgBB
-const uploadToImgBB = async (buffer) => {
-  try {
-    const base64Image = buffer.toString('base64');
-    const response = await fetch(`https://api.imgbb.com/1/upload?key=${process.env.IMGBB_API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `image=${base64Image}`
-    });
-    
-    const data = await response.json();
-    if (!data.success) throw new Error('Image upload failed on ImgBB');
-    return data.data.url; // Yeh image ki live link hai
-  } catch (error) {
-    throw new Error('Error uploading image');
-  }
+// Helper function to upload buffer to Cloudinary
+const uploadToCloudinary = (buffer) => {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.upload_stream(
+      { folder: 'mern-ecommerce', resource_type: 'image' },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      }
+    ).end(buffer); // Buffer ko stream ke through bhej rahe hain
+  });
 };
 
 // GET /api/products - All products (public)
@@ -82,7 +85,8 @@ router.post('/', protect, admin, upload.single('image'), async (req, res) => {
 
     // Agar file upload ki hai
     if (req.file) {
-      imageUrl = await uploadToImgBB(req.file.buffer);
+      const result = await uploadToCloudinary(req.file.buffer);
+      imageUrl = result.secure_url;
     }
 
     if (!imageUrl) {
@@ -119,7 +123,8 @@ router.put('/:id', protect, admin, upload.single('image'), async (req, res) => {
     let imageUrl = req.body.image || product.image;
 
     if (req.file) {
-      imageUrl = await uploadToImgBB(req.file.buffer);
+      const result = await uploadToCloudinary(req.file.buffer);
+      imageUrl = result.secure_url;
     }
 
     product.name = req.body.name || product.name;
