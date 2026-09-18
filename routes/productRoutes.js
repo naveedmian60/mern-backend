@@ -28,7 +28,7 @@ const uploadToCloudinary = (buffer) => {
         if (error) reject(error);
         else resolve(result);
       }
-    ).end(buffer); // Buffer ko stream ke through bhej rahe hain
+    ).end(buffer);
   });
 };
 
@@ -75,15 +75,14 @@ router.get('/:id', asyncHandler(async (req, res) => {
 // POST - Create product (Admin)
 router.post('/', protect, admin, upload.single('image'), async (req, res) => {
   try {
-    const { name, price, description, category, stock, brand } = req.body;
+    const { name, price, originalPrice, discount, description, category, stock, brand } = req.body;
 
     if (!name || !price || !description || !category) {
       return res.status(400).json({ success: false, message: 'Please fill all required fields' });
     }
 
-    let imageUrl = req.body.image; // Agar URL paste kiya
+    let imageUrl = req.body.image;
 
-    // Agar file upload ki hai
     if (req.file) {
       const result = await uploadToCloudinary(req.file.buffer);
       imageUrl = result.secure_url;
@@ -96,6 +95,8 @@ router.post('/', protect, admin, upload.single('image'), async (req, res) => {
     const product = new Product({
       name,
       price: Number(price),
+      originalPrice: Number(originalPrice) || 0, // Saved
+      discount: Number(discount) || 0,           // Saved
       description,
       category,
       image: imageUrl,
@@ -129,6 +130,8 @@ router.put('/:id', protect, admin, upload.single('image'), async (req, res) => {
 
     product.name = req.body.name || product.name;
     product.price = req.body.price ? Number(req.body.price) : product.price;
+    product.originalPrice = req.body.originalPrice ? Number(req.body.originalPrice) : product.originalPrice; // Updated
+    product.discount = req.body.discount !== undefined ? Number(req.body.discount) : product.discount;       // Updated
     product.description = req.body.description || product.description;
     product.category = req.body.category || product.category;
     product.image = imageUrl;

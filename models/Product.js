@@ -5,8 +5,12 @@ const productSchema = mongoose.Schema({
     description: { type: String, required: true },
     category: { type: String, required: true },
     price: { type: Number, required: true, default: 0 },
+    originalPrice: { type: Number, default: 0 }, // Discount wali purani price
+    discount: { type: Number, default: 0 },       // Discount percent
     stock: { type: Number, required: true, default: 0 },
-    image: { type: String, required: true } // Will store Cloudinary URL
+    image: { type: String, required: true },
+    brand: { type: String, default: '' },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Product', productSchema);
