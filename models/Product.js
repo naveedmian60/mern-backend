@@ -10,7 +10,7 @@ const productSchema = mongoose.Schema({
     stock: { type: Number, required: true, default: 0 },
     image: { type: String, required: true },
     brand: { type: String, default: '' },
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
+user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Product', productSchema);

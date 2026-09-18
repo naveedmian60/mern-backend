@@ -137,7 +137,7 @@ router.put('/:id', protect, admin, upload.single('image'), async (req, res) => {
     product.image = imageUrl;
     product.stock = req.body.stock !== undefined ? Number(req.body.stock) : product.stock;
     product.brand = req.body.brand !== undefined ? req.body.brand : product.brand;
-
+    product.user = product.user || req.user.id;
     const updated = await product.save();
     res.json({ success: true, product: updated });
   } catch (error) {
