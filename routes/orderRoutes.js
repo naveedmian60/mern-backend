@@ -6,18 +6,27 @@ const { protect, admin } = require('../middlewares/authMiddleware');
 
 // POST /api/orders - Naya order place karna
 router.post('/', protect, asyncHandler(async (req, res) => {
-  const { orderItems, shippingAddress, totalPrice } = req.body;
+  const { items, shippingInfo, paymentMethod, totalPrice } = req.body;
 
-  if (orderItems && orderItems.length === 0) {
+  if (items && items.length === 0) {
     res.status(400);
     throw new Error('No order items');
   } else {
+    // Frontend ke 'items' ko backend ke 'orderItems' format mein convert karna
+    const orderItems = items.map(item => ({
+      product: item.product,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+      image: item.image
+    }));
+
     const order = new Order({
       user: req.user.id,
       orderItems,
-      shippingAddress,
+      shippingInfo,
+      paymentMethod,
       totalPrice,
-      paymentMethod: 'Cash on Delivery',
     });
 
     const createdOrder = await order.save();
