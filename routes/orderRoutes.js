@@ -65,7 +65,7 @@ router.put('/:id/status', protect, admin, asyncHandler(async (req, res) => {
   }
 }));
 
-// PUT /api/orders/:id/cancel - User apna order cancel karene ke liye (NAYA ROUTE)
+// PUT /api/orders/:id/cancel - User apna order cancel karene ke liye
 router.put('/:id/cancel', protect, asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
 
@@ -85,6 +85,25 @@ router.put('/:id/cancel', protect, asyncHandler(async (req, res) => {
     order.status = 'Cancelled';
     const updatedOrder = await order.save();
     res.json(updatedOrder);
+  } else {
+    res.status(404);
+    throw new Error('Order not found');
+  }
+}));
+
+// DELETE /api/orders/:id - User apna order history se delete karne ke liye (NAYA ROUTE)
+router.delete('/:id', protect, asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.id);
+
+  if (order) {
+    // Check karein ke yeh order usi user ka hai jo request kar raha hai
+    if (order.user.toString() !== req.user.id) {
+      res.status(401);
+      throw new Error('Not authorized to delete this order');
+    }
+
+    await order.deleteOne();
+    res.json({ success: true, message: 'Order removed from history' });
   } else {
     res.status(404);
     throw new Error('Order not found');
