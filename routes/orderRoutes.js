@@ -65,4 +65,30 @@ router.put('/:id/status', protect, admin, asyncHandler(async (req, res) => {
   }
 }));
 
+// PUT /api/orders/:id/cancel - User apna order cancel karene ke liye (NAYA ROUTE)
+router.put('/:id/cancel', protect, asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.id);
+
+  if (order) {
+    // Check karein ke yeh order usi user ka hai jo request kar raha hai
+    if (order.user.toString() !== req.user.id) {
+      res.status(401);
+      throw new Error('Not authorized to cancel this order');
+    }
+
+    // Order sirf tab cancel ho jab Pending ya Processing mein ho
+    if (order.status === 'Shipped' || order.status === 'Delivered') {
+      res.status(400);
+      throw new Error('Cannot cancel order that is already shipped or delivered');
+    }
+
+    order.status = 'Cancelled';
+    const updatedOrder = await order.save();
+    res.json(updatedOrder);
+  } else {
+    res.status(404);
+    throw new Error('Order not found');
+  }
+}));
+
 module.exports = router;
