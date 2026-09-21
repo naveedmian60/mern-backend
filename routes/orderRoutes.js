@@ -58,12 +58,12 @@ router.post('/', protect, asyncHandler(async (req, res) => {
         <p>Customer Email: ${shippingInfo.email}</p>
         <p>Customer Phone: ${shippingInfo.phone}</p>
         <p>Shipping Address: ${shippingInfo.address}, ${shippingInfo.city}, ${shippingInfo.zipCode}</p>
-      `;
-      // Customer ko email bhejna
-      await sendOrderConfirmationEmail(shippingInfo.email, shippingInfo.fullName, orderItems, totalPrice, shippingInfo);
+        `;
+         // Customer ko email bhejna (Background mein)
+      sendOrderConfirmationEmail(shippingInfo.email, shippingInfo.fullName, orderItems, totalPrice, shippingInfo).catch(console.error);
       
-      // Admin ko email bhejna (Aapke email par)
-      await sendAdminOrderEmail(orderItems, totalPrice, shippingInfo);
+      // Admin ko email bhejna (Background mein)
+      sendAdminOrderEmail(orderItems, totalPrice, shippingInfo).catch(console.error);
     } catch (emailError) {
       console.error('Failed to send email:', emailError);
       // Agar email fail ho, toh order save hoga lekin email nahi jayega
