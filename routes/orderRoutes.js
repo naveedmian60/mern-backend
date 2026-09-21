@@ -3,7 +3,7 @@ const router = express.Router();
 const asyncHandler = require('express-async-handler');
 const Order = require('../models/Order');
 const { protect, admin } = require('../middlewares/authMiddleware');
-const { sendOrderConfirmationEmail, sendAdminOrderEmail } = require('../utils/sendEmail.js');
+const { sendOrderConfirmationEmail, sendAdminOrderEmail } = require('../utils/emailService.js');
 
 // POST /api/orders - Naya order place karna
 router.post('/', protect, asyncHandler(async (req, res) => {
