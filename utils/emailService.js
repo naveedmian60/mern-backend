@@ -1,8 +1,5 @@
-const { Resend } = require('resend');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 
-// ─── Send Order Confirmation Email (Customer) ───
 const sendOrderConfirmationEmail = async (email, name, orderItems, totalPrice, shippingInfo) => {
   const itemsList = orderItems.map(item => `<li style="margin-bottom: 8px; color: #4b5563;">${item.name} (Qty: ${item.quantity}) - Rs ${(item.price * item.quantity).toFixed(2)}</li>`).join('');
 
@@ -24,13 +21,27 @@ const sendOrderConfirmationEmail = async (email, name, orderItems, totalPrice, s
   `;
 
   try {
-    await resend.emails.send({
-      from: process.env.EMAIL_FROM,
-      to: email,
-      subject: "Order Confirmation — ShopZone",
-      html: html,
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'content-type': 'application/json',
+        'api-key': process.env.BREVO_API_KEY
+      },
+      body: JSON.stringify({
+        sender: { name: "ShopZone", email: "naveedmian0342@gmail.com" }, // Yahan apna wo Gmail likhein jo Brevo par verify kiya
+        to: [{ email: email, name: name }],
+        subject: "Order Confirmation — ShopZone",
+        htmlContent: html
+      })
     });
-    console.log(`✅ Order confirmation email sent to ${email}`);
+
+    if (response.ok) {
+      console.log(`✅ Order confirmation email sent to ${email}`);
+    } else {
+      const errorData = await response.json();
+      console.error("❌ Brevo Error:", errorData.message);
+    }
   } catch (error) {
     console.error("❌ Failed to send order email:", error.message);
   }
@@ -58,17 +69,30 @@ const sendAdminOrderEmail = async (orderItems, totalPrice, shippingInfo) => {
   `;
 
   try {
-    await resend.emails.send({
-      from: process.env.EMAIL_FROM,
-      to: process.env.EMAIL_FROM, // Aapke khud ke email par notification jayegi
-      subject: "New Order Received — ShopZone",
-      html: html,
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'content-type': 'application/json',
+        'api-key': process.env.BREVO_API_KEY
+      },
+      body: JSON.stringify({
+        sender: { name: "ShopZone System", email: "naveedmian0342@gmail.com" },
+        to: [{ email: "naveedmian0342@gmail.com", name: "Admin" }], // Aapke khud ke email par notification jayegi
+        subject: "New Order Received — ShopZone",
+        htmlContent: html
+      })
     });
-    console.log(`✅ Admin notification email sent`);
+
+    if (response.ok) {
+      console.log(`✅ Admin notification email sent`);
+    } else {
+      const errorData = await response.json();
+      console.error("❌ Brevo Admin Error:", errorData.message);
+    }
   } catch (error) {
     console.error("❌ Failed to send admin email:", error.message);
   }
 };
-
 
 module.exports = { sendOrderConfirmationEmail, sendAdminOrderEmail };
