@@ -7,6 +7,7 @@ const connectDB = require('./config/db');
 const contactRoutes = require('./routes/contactRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const orderRoutes = require('./routes/orderRoutes');
+const cartRoutes = require('./routes/cartRoutes'); // <-- Yeh add kiya hai
 
 dotenv.config();
 connectDB();
@@ -23,6 +24,7 @@ app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/orders', orderRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/cart', cartRoutes); // <-- Yeh add kiya hai
 
 // Global Error Handler (Yeh error ko saaf saaf dikhayega)
 app.use((err, req, res, next) => {
